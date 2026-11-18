@@ -1,0 +1,16 @@
+{
+  "name": "flow",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": ["apps/web", "apps/api", "packages/contracts"],
+  "scripts": {
+    "dev": "concurrently -k -n web,api -c auto \"npm run dev --workspace @flow/web\" \"npm run dev --workspace @flow/api\"",
+    "dev:web": "npm run dev --workspace @flow/web",
+    "dev:api": "npm run dev --workspace @flow/api",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
