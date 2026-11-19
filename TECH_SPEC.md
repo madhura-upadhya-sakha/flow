@@ -6,6 +6,22 @@
 - **Inspection result:** Figma returned source resource links for an app with `DashboardPage.tsx`, `AppShell.tsx`, shared task/UI components, project/board/team/timeline pages, state, data, and type files. The separate `get_screenshot` endpoint rejected the file because it does not support Figma Make. The returned `file://figma/make/...` resources could not be opened through the available MCP resource reader, and the provided preview URL was not accessible through the web reader.
 - Consequently, this document distinguishes **known from resource names/URL** from **implementation recommendations/inferences**. Exact rendered layout, labels, token values, displayed records, and implemented interactions remain to be confirmed against the Make source or a screenshot. Do not treat inferred values below as pixel-accurate design facts.
 
+## Phase 2 design scope
+
+The updated Figma Make context exposes the following source files. The preview returned HTTP 403 and the connector could not open the linked source or project plan. Feature names below come from that inventory. The workflows and persistence model are proposals for review.
+
+| Design files | Backend and data questions to resolve |
+|---|---|
+| `AuthPages.tsx`, `AccountPages.tsx`, `AuthContext.tsx`, `AccessDeniedPage.tsx` | Verify account flows. Resolve Auth0 users by issuer and subject before looking up workspace access. |
+| `UsersPage.tsx`, `UserDetailPage.tsx`, `RolesPage.tsx`, `rbac.ts` | Confirm user lifecycle, role assignment scope, permission definitions, and which actions require each permission. |
+| `OrganizationPage.tsx`, `PlatformContext.tsx` | Determine whether organization settings apply to an existing workspace or to an entity that owns multiple workspaces. |
+| `AuditPage.tsx`, `NotificationsPage.tsx` | Confirm which actions produce audit events and notifications, who can see them, and whether the notifications have read state. |
+| `ImportPage.tsx`, `ImportHistoryPage.tsx` | Confirm accepted formats, column mapping, validation, duplicate handling, and whether partial success is allowed. |
+| `AIAssistantPage.tsx` | Confirm supported actions, data access, and whether conversations persist or can modify project data. |
+| `RootLayout.tsx`, `routes.tsx`, `EnterpriseUI.tsx`, `AppShell.tsx` | Confirm route paths, navigation, access-denied states, and reusable UI before implementing. |
+
+The repository already uses React/Vite, NestJS, PostgreSQL, and an Auth0 JWT guard. The dashboard API currently runs in local development under a configured workspace member. Phase 2 API wiring should resolve the authenticated user and workspace membership server-side, enforce permissions per operation, and use the same workspace scope in database queries and UI state. The proposed database relationships and migration sequence are in the [Phase 2 database design](docs/database/DATABASE_DESIGN.md#phase-2-schema-proposal).
+
 ## 1. Overview & Purpose
 
 The target is the dashboard route of a project-management product called “Project Management Platform” (app source labels it “Flowdeck Project Management MVP”). Its likely primary goal is to give a signed-in team member an at-a-glance view of project and task progress and quick access to work management views. These outcomes are inferred from the product name and the source file inventory; exact dashboard content could not be verified.

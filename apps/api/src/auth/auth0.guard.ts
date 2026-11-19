@@ -23,6 +23,14 @@ export class Auth0Guard implements CanActivate {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_ROUTE, [context.getHandler(), context.getClass()]);
     if (isPublic) return true;
 
+    await this.authenticate(context.switchToHttp().getRequest<AuthenticatedRequest>());
+    return true;
+  }
+
+  async authenticate(request: AuthenticatedRequest) {
+    const [scheme, token] = (request.headers.authorization ?? '').split(' ');
+    if (scheme !== 'Bearer' || !token) throw new UnauthorizedException('A valid bearer token is required.');
+
     const issuerValue = this.config.get<string>('AUTH0_ISSUER');
     const audience = this.config.get<string>('AUTH0_AUDIENCE');
     if (!issuerValue || !audience || issuerValue.includes('YOUR_TENANT')) {
@@ -30,16 +38,13 @@ export class Auth0Guard implements CanActivate {
     }
 
     const issuer = issuerValue.endsWith('/') ? issuerValue : `${issuerValue}/`;
-    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
-    const [scheme, token] = (request.headers.authorization ?? '').split(' ');
-    if (scheme !== 'Bearer' || !token) throw new UnauthorizedException('A valid bearer token is required.');
 
     try {
       this.jwks ??= createRemoteJWKSet(new URL('.well-known/jwks.json', issuer));
       const { payload } = await jwtVerify(token, this.jwks, { issuer, audience });
       if (!payload.sub) throw new UnauthorizedException('Token subject is missing.');
       request.auth = { subject: payload.sub, claims: payload };
-      return true;
+      return { issuer, subject: payload.sub };
     } catch {
       throw new UnauthorizedException('The access token is invalid or expired.');
     }

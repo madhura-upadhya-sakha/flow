@@ -168,4 +168,22 @@ No required dashboard workflow in the available specification is impossible to r
 
 ## 12. Execution order
 
-On a clean PostgreSQL database, execute in order: `database/schema.sql`, `database/constraints.sql`, `database/indexes.sql`, then `database/seed-data.sql`. Scripts are intentionally unqualified by schema and assume the target schema is on `search_path`. Run them with a migration tool in deployed environments; these development scripts are not an idempotent migration framework.
+On a clean PostgreSQL database, execute in order: `database/schema.sql`, `database/constraints.sql`, `database/indexes.sql`, then the SQL files in `database/migrations/` in numeric order. Scripts are intentionally unqualified by schema and assume the target schema is on `search_path`. Run them with a migration tool in deployed environments; these development scripts are not an idempotent migration framework.
+
+## Phase 2 schema proposal
+
+The updated Figma Make inventory lists account, user administration, roles, organization, audit, notifications, task import, and AI assistant screens. Review the [Phase 2 specification](../../TECH_SPEC.md#phase-2-design-scope) for the source files and outstanding decisions.
+
+| Candidate relation | Keys and scope | Decisions needed before migration |
+|---|---|---|
+| `user_identities` | Unique `(issuer, subject)` mapped to `users.id` | Confirm account provisioning, linking, and how existing users get an identity mapping. |
+| `roles`, `role_permissions`, `workspace_member_roles` | Scope role assignments to `workspace_members`. Require both membership and role to belong to the same workspace. | Confirm built-in and editable roles, permission keys, and single or multiple assignments. |
+| `organizations` | Link workspaces to an organization only if the design establishes an organization above the workspace. | Confirm tenant boundary and organization settings. |
+| `audit_events` | Append-only events scoped by workspace, with actor, action, target and event time. | Confirm event catalog, actor handling after deletion, visibility, and retention. |
+| `notifications` | Scope each record to a workspace and recipient. Consider `read_at` if read state is supported. | Confirm triggers, delivery channels and recipient history behavior. |
+| `task_imports`, `task_import_rows` | Scope each run to a workspace and initiating user. Relate each row result to its run and any created task. | Confirm validation, retry behavior, duplicate handling, upload retention, and atomicity. |
+| Assistant persistence | Apply workspace and actor scope to any stored conversation or action. | Confirm whether the screen stores history or executes actions before adding tables. |
+
+Preserve existing workspace, project, and task IDs. For role migration, inventory existing `workspace_members.role` values and review their mapping before backfilling assignments. During rollout, deploy compatible reads and writes before removing the legacy role column. Record any required audit events in the same transaction as the successful operation they describe. Add indexes for the confirmed query patterns, such as workspace and event time for audit history, or recipient and creation time for notifications. Verify upgrades against an existing database and confirm that database constraints and API checks reject cross-workspace access.
+
+The current SQL files describe the baseline database. This proposal records candidate relationships while feature behavior and migration rules are awaiting confirmation.

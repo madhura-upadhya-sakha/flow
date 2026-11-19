@@ -1,5 +1,7 @@
 # Flow Application Data Dictionary
 
+See the [Phase 2 schema proposal](DATABASE_DESIGN.md#phase-2-schema-proposal) for candidate relations and design decisions.
+
 Types and nullability below match the PostgreSQL DDL. All `created_at` timestamps default to the transaction timestamp; `updated_at` also defaults on insert and must be refreshed by the application on update. `created_by` and `updated_by` are nullable to allow bootstrap/system operations. No password or token fields are stored.
 
 ## `workspaces`
@@ -38,6 +40,10 @@ Junction representing workspace membership and a product-defined role.
 | `workspace_id` | uuid | No | — | PK part; FK → `workspaces.id` | Workspace joined |
 | `user_id` | uuid | No | — | PK part; FK → `users.id` | Member |
 | `role` | varchar(64) | No | — | Non-empty check | Workspace role; allowed values not specified |
+| `employee_id` | text | No | Generated at insertion | Unique within the workspace | Stable employee identifier |
+| `status` | text | No | `active` | `active`, `inactive`, or `pending_invitation` | Workspace access status |
+| `display_name` | varchar(160) | Yes | — | — | Workspace display name override |
+| `work_email` | varchar(320) | Yes | — | — | Workspace contact email override |
 | `created_at` | timestamptz | No | `CURRENT_TIMESTAMP` | — | Membership creation time |
 | `updated_at` | timestamptz | No | `CURRENT_TIMESTAMP` | — | Membership update time |
 | `created_by` | uuid | Yes | — | FK → `users.id` | Actor who added member |
@@ -90,7 +96,8 @@ Project work item shown in board, timeline, and dashboard task panels.
 | `status` | varchar(64) | No | — | Non-empty check | Workflow state; allowed values/transitions not specified |
 | `priority` | varchar(64) | Yes | — | Non-empty if set | Optional priority; vocabulary not specified |
 | `assignee_id` | uuid | Yes | — | FK → `users.id` | Optional assigned user |
-| `due_date` | date | Yes | — | — | Optional target date |
+| `start_date` | date | Yes | — | On or before `due_date` when both are set | Optional scheduled start |
+| `due_date` | date | Yes | — | On or after `start_date` when both are set | Optional target date |
 | `created_at` | timestamptz | No | `CURRENT_TIMESTAMP` | — | Creation time |
 | `updated_at` | timestamptz | No | `CURRENT_TIMESTAMP` | — | Last update time |
 | `created_by` | uuid | Yes | — | FK → `users.id` | Creating actor |
@@ -122,3 +129,10 @@ Junction assigning workspace labels to tasks. Composite key prevents duplicate a
 | `created_at` | timestamptz | No | `CURRENT_TIMESTAMP` | — | Assignment creation time |
 
 The DDL additionally enforces same-workspace project/task and task/label association using composite foreign keys. Foreign-key columns are indexed where needed for joins and delete checks; see `database/indexes.sql`.
+
+## Workspace operations
+
+- `workspace_departments.lead_id` references an optional lead in the same workspace. Membership records can reference a department, manager, and job title. Department and manager references are scoped to the workspace. The reporting API checks for cycles.
+- `workspace_role_permissions` stores the permission preview for each workspace role key, including custom roles. Names are unique within each workspace without regard to case.
+- `workspace_audit` stores timestamped workspace administration events, including the actor, module, action, affected record, and changed fields. The audit API also includes task activity and import history.
+- `task_imports` stores the upload file name, row-level errors, and skipped count in addition to the imported task count. A workbook may span several projects, so its job does not require a single project ID.

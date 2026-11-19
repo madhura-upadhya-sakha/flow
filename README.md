@@ -49,6 +49,8 @@ The web client is served at `http://localhost:5173/dashboard`; the API health en
 
 For a local database-backed dashboard, set `LOCAL_DASHBOARD_WORKSPACE_ID` and `LOCAL_DASHBOARD_USER_ID` in `apps/api/.env` to an existing `workspace_members` pair. The database initialization scripts create the tables. Add a workspace, user, and workspace membership before setting those IDs. With local dashboard access configured, the API binds to loopback and the dashboard can load projects, tasks, and team counts, create projects, and update task completion.
 
+Database initialization starts with empty tables. After configuring the local workspace and owner, open Projects and create the first project for testing.
+
 The local dashboard endpoints are disabled in production. Auth0-backed dashboard access still requires user identity mapping and workspace authorization.
 
 ## Development commands
@@ -62,3 +64,7 @@ The local dashboard endpoints are disabled in production. Auth0-backed dashboard
 | `npm run typecheck` | Type-check all workspaces that define a typecheck script |
 
 API modules follow a feature-first pattern. Add DTOs/controllers/services/repositories inside their feature directory and unit tests alongside the feature or under `apps/api/test`. Keep workspace authorization in the API and enforce it at repository-query boundaries. Do not treat a valid Auth0 identity or a client-supplied workspace ID as authorization by itself.
+
+### Account actions
+
+For Auth0 database accounts, set `VITE_AUTH0_DB_CONNECTION` to the database connection used by the application. Change password sends a reset email through Auth0. Add the deployed application's `/signed-out` URL to the Auth0 application's Allowed Logout URLs. With Auth0 absent, Logout exits the local workspace UI for the current tab and Change password explains that local demo users have no password to reset.

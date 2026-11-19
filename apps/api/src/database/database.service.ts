@@ -9,6 +9,7 @@ export class DatabaseService implements OnModuleDestroy {
   constructor(config: ConfigService) {
     this.pool = new Pool({
       connectionString: config.get<string>('DATABASE_URL'),
+      application_name: 'flowdeck-api',
       max: Number(config.get<string>('DATABASE_POOL_MAX', '10')),
       idleTimeoutMillis: 30_000,
       connectionTimeoutMillis: 5_000,

@@ -1,5 +1,7 @@
 # Flow Application ERD
 
+See the [Phase 2 schema proposal](DATABASE_DESIGN.md#phase-2-schema-proposal) for candidate relations and design decisions.
+
 This Mermaid ERD reflects the baseline tables in `database/schema.sql`. It does not include optional activity events, authentication credentials, or cached dashboard aggregates.
 
 ```mermaid

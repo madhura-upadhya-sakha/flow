@@ -11,7 +11,8 @@
   "dependencies": {
     "@auth0/auth0-react": "^2.30.0",
     "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "react-dom": "^19.3.0",
+    "read-excel-file": "^9.3.19"
   },
   "devDependencies": {
     "@types/react": "^19.2.0",
