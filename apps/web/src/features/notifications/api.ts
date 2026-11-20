@@ -18,7 +18,7 @@ export async function requestApi<T>(path: string, options?: RequestInit, token?:
   const headers = new Headers(options?.headers);
   if (options?.body) headers.set('Content-Type', 'application/json');
   if (token) headers.set('Authorization', `Bearer ${token}`);
-  const response = await fetch(`${apiUrl}/${path}`, { ...options, headers });
+  const response = await fetch(`${apiUrl}/${path}`, { credentials: 'include', ...options, headers });
   if (!response.ok) {
     const problem = await response.json().catch(() => null);
     throw new Error(response.status < 500 && typeof problem?.message === 'string'

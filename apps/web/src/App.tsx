@@ -5,8 +5,9 @@ import { AppShell, type Section } from './components/layout/AppShell';
 import type { AdminSection } from './features/administration/AdministrationPage';
 import { projectRoute } from './features/dashboard/projectRoutes';
 import type { Editor } from './features/dashboard/WorkspaceEditor';
-import { clearNotificationWorkspace } from './features/notifications/api';
-import { dashboardRequest, type Dashboard } from './features/dashboard/data';
+import { clearNotificationWorkspace, requestApi } from './features/notifications/api';
+import { DashboardRequestError, type Dashboard } from './features/dashboard/data';
+import { AuthenticatedDashboard, useDashboardRequest } from './auth/DashboardSession';
 
 const ProfilePage = lazy(() => import('./features/account/ProfilePage'));
 const DashboardPage = lazy(() => import('./features/dashboard/DashboardPage'));
@@ -31,30 +32,62 @@ const administration: Partial<Record<Section, AdminSection>> = {
 const localSignOutKey = 'flowdeck.local-signed-out';
 
 export default function App() {
-  const [signedOut, setSignedOut] = useState(() => window.location.pathname === '/signed-out' ||
-    (!hasAuth0Configuration() && sessionStorage.getItem(localSignOutKey) === 'true'));
+  const auth0 = hasAuth0Configuration();
+  const [session, setSession] = useState<{ mode: 'disabled' } | { mode: 'password'; authenticated: boolean }>();
+  const [error, setError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const [showLogin, setShowLogin] = useState(() => ['/login', '/signed-out'].includes(window.location.pathname));
 
   useEffect(() => {
-    const syncSignOut = () => setSignedOut(window.location.pathname === '/signed-out' ||
-      (!hasAuth0Configuration() && sessionStorage.getItem(localSignOutKey) === 'true'));
-    window.addEventListener('popstate', syncSignOut);
-    return () => window.removeEventListener('popstate', syncSignOut);
+    const sync = () => setShowLogin(['/login', '/signed-out'].includes(window.location.pathname));
+    const refreshRestoredPage = (event: PageTransitionEvent) => {
+      if (event.persisted) window.location.reload();
+    };
+    window.addEventListener('popstate', sync);
+    window.addEventListener('pageshow', refreshRestoredPage);
+    return () => {
+      window.removeEventListener('popstate', sync);
+      window.removeEventListener('pageshow', refreshRestoredPage);
+    };
   }, []);
 
-  if (signedOut) return <SignedOutPage onResumeDemo={() => {
-    sessionStorage.removeItem(localSignOutKey);
-    window.history.replaceState({}, '', '/dashboard');
-    setSignedOut(false);
-  }} />;
-  return <WorkspaceApp onLocalLogout={() => {
+  useEffect(() => {
+    if (auth0) return;
+    const controller = new AbortController();
+    requestApi<NonNullable<typeof session>>('session', { signal: controller.signal })
+      .then((result) => { if (!controller.signal.aborted) setSession(result); })
+      .catch(() => { if (!controller.signal.aborted) setError(true); });
+    return () => controller.abort();
+  }, [auth0, attempt]);
+
+  useEffect(() => {
+    if (session?.mode !== 'password') return;
+    const path = session.authenticated && showLogin ? '/dashboard' :
+      !session.authenticated && !showLogin ? '/login' : undefined;
+    if (path) window.history.replaceState({}, '', path);
+  }, [session, showLogin]);
+
+  const workspace = <WorkspaceApp passwordMode={session?.mode === 'password'} onLocalLogout={() => {
     clearNotificationWorkspace();
     sessionStorage.setItem(localSignOutKey, 'true');
-    window.history.replaceState({}, '', '/signed-out');
-    setSignedOut(true);
+    window.location.replace('/login');
   }} />;
+  if (auth0) return showLogin ? <SignedOutPage /> : <AuthenticatedDashboard>{workspace}</AuthenticatedDashboard>;
+  if (error) return <p role="alert">Could not check your session. <button type="button" onClick={() => {
+    setError(false);
+    setAttempt((value) => value + 1);
+  }}>Retry</button></p>;
+  if (!session) return <p role="status">Checking sign-in…</p>;
+  if (session.mode === 'password') return session.authenticated ? workspace : <SignedOutPage passwordMode />;
+  if (showLogin || sessionStorage.getItem(localSignOutKey) === 'true') return <SignedOutPage onResumeDemo={() => {
+    sessionStorage.removeItem(localSignOutKey);
+    window.location.replace('/dashboard');
+  }} />;
+  return workspace;
 }
 
-function WorkspaceApp({ onLocalLogout }: { onLocalLogout: () => void }) {
+function WorkspaceApp({ onLocalLogout, passwordMode }: { onLocalLogout: () => void; passwordMode: boolean }) {
+  const dashboardRequest = useDashboardRequest();
   const [pathname, setPathname] = useState(window.location.pathname);
   const memberId = /^\/admin\/users\/([^/]+)\/?$/.exec(pathname)?.[1];
   const selectedProject = projectRoute(pathname);
@@ -104,11 +137,16 @@ function WorkspaceApp({ onLocalLogout }: { onLocalLogout: () => void }) {
     const controller = new AbortController();
     dashboardRequest<Dashboard>('', { signal: controller.signal }).then((data) => {
       if (!controller.signal.aborted) setDashboard(data);
-    }).catch(() => {
-      if (!controller.signal.aborted) setError('Could not load workspace data.');
+    }).catch((failure) => {
+      if (controller.signal.aborted) return;
+      if (passwordMode && failure instanceof DashboardRequestError && failure.status === 401) {
+        window.location.replace('/login');
+        return;
+      }
+      setError('Could not load workspace data.');
     });
     return () => controller.abort();
-  }, [attempt]);
+  }, [attempt, dashboardRequest, passwordMode]);
 
   const retry = () => {
     setError('');
@@ -140,8 +178,8 @@ function WorkspaceApp({ onLocalLogout }: { onLocalLogout: () => void }) {
       onUnreadCount={setUnreadCount}>
       <Suspense fallback={<p role="status">Loading page…</p>}>
       {active === 'My profile' ? <ProfilePage onSave={refreshWorkspace} /> :
-        active === 'Change password' ? <ChangePasswordPage onProfile={() => navigate('My profile')} /> :
-        active === 'Logout' ? <LogoutPage onLocalLogout={onLocalLogout}
+        active === 'Change password' ? <ChangePasswordPage passwordMode={passwordMode} onProfile={() => navigate('My profile')} /> :
+        active === 'Logout' ? <LogoutPage passwordMode={passwordMode} onLocalLogout={onLocalLogout}
           onCancel={() => {
             window.history.replaceState({}, '', logoutReturnPath);
             setPathname(logoutReturnPath);

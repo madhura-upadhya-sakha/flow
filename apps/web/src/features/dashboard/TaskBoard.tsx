@@ -1,6 +1,7 @@
 import { useEffect, useState, type DragEvent } from 'react';
 import { Icon } from '../../lib/icons';
-import { dashboardRequest, dateKey, initials, isDone, type Member, type Project, type Task } from './data';
+import { dateKey, initials, isDone, type Member, type Project, type Task } from './data';
+import { useDashboardRequest } from '../../auth/DashboardSession';
 import { projectPath } from './projectRoutes';
 
 const defaultStatuses = ['To do', 'In progress', 'In review', 'Blocked', 'Done'];
@@ -71,6 +72,7 @@ function BoardCard({ task, details, today, memberIndex, scoped, onOpen }: {
 }
 
 export function TaskBoard({ tasks, project, members, timeZone, workspaceSearch, revision, saving, onMove, onEdit, onOpen, onCreate }: Props) {
+  const dashboardRequest = useDashboardRequest();
   const [draggedId, setDraggedId] = useState('');
   const [search, setSearch] = useState('');
   const [assignee, setAssignee] = useState('');

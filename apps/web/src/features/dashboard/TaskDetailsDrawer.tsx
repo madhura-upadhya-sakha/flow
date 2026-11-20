@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Icon } from '../../lib/icons';
-import { dashboardRequest, dashboardUrl, formatCapacity, initials, isDone, type Task, type Dashboard } from './data';
+import { formatCapacity, initials, isDone, type Task, type Dashboard } from './data';
+import { DashboardDownload, useDashboardRequest } from '../../auth/DashboardSession';
 import { projectPath } from './projectRoutes';
 import { TaskActivity } from './TaskActivity';
 import { TaskComments } from './TaskComments';
@@ -38,6 +39,7 @@ const optionValues = (base: string[], current: string) => [...new Set([...base, 
 
 export default function TaskDetailsDrawer({ task, dashboard, variant, onClose, onUpdate, onDelete,
   onTaskListChange, onActivityChange, onTimeLogged }: Props) {
+  const dashboardRequest = useDashboardRequest();
   const inlineDetails = variant !== undefined;
   const dialog = useRef<HTMLDialogElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
@@ -223,13 +225,14 @@ export default function TaskDetailsDrawer({ task, dashboard, variant, onClose, o
               </select>
             </div>
             {Boolean(data?.attachments.length) && <ul className={inlineDetails ? "drawer-attachments" : "drawer-item-list"}>
-              {data?.attachments.map((item) => <li key={item.id}>
-                <a href={'url' in item ? item.url : dashboardUrl(`${path}/attachments/${item.id}`)}
-                  target={'url' in item ? '_blank' : undefined} rel={'url' in item ? 'noreferrer' : undefined}>
-                  {inlineDetails ? <><Icon name="attachment" /><strong>{item.name}</strong>
-                    <span>{'sizeBytes' in item ? formatSize(item.sizeBytes) : 'Link'}</span></> : item.name}
-                </a>
-              </li>)}
+              {data?.attachments.map((item) => {
+                const label = inlineDetails ? <><Icon name="attachment" /><strong>{item.name}</strong>
+                  <span>{'sizeBytes' in item ? formatSize(item.sizeBytes) : 'Link'}</span></> : item.name;
+                return <li key={item.id}>
+                  {'url' in item ? <a href={item.url} target="_blank" rel="noreferrer">{label}</a> :
+                    <DashboardDownload className="attachment-download" path={`${path}/attachments/${item.id}`} filename={item.name}>{label}</DashboardDownload>}
+                </li>;
+              })}
             </ul>}
             {inlineDetails ? <>
               <input ref={fileInput} type="file" hidden onChange={addFile} />

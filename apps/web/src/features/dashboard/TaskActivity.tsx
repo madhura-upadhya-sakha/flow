@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { dashboardRequest, initials } from './data';
+import { initials } from './data';
+import { useDashboardRequest } from '../../auth/DashboardSession';
 
 type Entry = {
   id: string;
@@ -13,6 +14,7 @@ const actionText = { created: 'created the task', updated: 'updated the task', c
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 
 export function TaskActivity({ taskId, drawer = false, withAvatars = false, timezone }: { taskId: string; drawer?: boolean; withAvatars?: boolean; timezone?: string }) {
+  const dashboardRequest = useDashboardRequest();
   const [entries, setEntries] = useState<Entry[]>([]);
   const [cursor, setCursor] = useState<string>();
   const [nextCursor, setNextCursor] = useState<string | null>(null);

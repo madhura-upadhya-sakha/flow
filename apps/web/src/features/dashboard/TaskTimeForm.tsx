@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from 'react';
 import { Icon } from '../../lib/icons';
-import { dashboardRequest } from './data';
+import { useDashboardRequest } from '../../auth/DashboardSession';
 
 export function TaskTimeForm({ taskId, onLogged, drawer = false }: { taskId: string; onLogged: () => void; drawer?: boolean }) {
+  const dashboardRequest = useDashboardRequest();
   const [minutes, setMinutes] = useState('');
   const [requestId, setRequestId] = useState(() => crypto.randomUUID());
   const [busy, setBusy] = useState(false);

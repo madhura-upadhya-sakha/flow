@@ -4,7 +4,7 @@ export type IconName =
   | 'grid' | 'folder' | 'check' | 'board' | 'calendar' | 'users'
   | 'search' | 'zoom-in' | 'zoom-out' | 'bell' | 'plus' | 'arrow' | 'dots' | 'clock'
   | 'organization' | 'departments' | 'shield' | 'audit'
-  | 'key' | 'logout' | 'moon' | 'sun'
+  | 'key' | 'lock' | 'logout' | 'moon' | 'sun'
   | 'list' | 'eye' | 'edit' | 'mail' | 'user-plus' | 'upload' | 'download' | 'sheet' | 'copy' | 'history'
   | 'trash' | 'attachment' | 'comment' | 'link' | 'tag'
   | 'timer' | 'completed' | 'alert'
@@ -32,6 +32,7 @@ const paths: Record<IconName, ReactNode> = {
   moon: <path d="M20.9 13.8A9 9 0 0 1 10.2 3.1 9 9 0 1 0 20.9 13.8Z"/>,
   sun: <><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4m0-14.2-1.4 1.4M6.3 17.7l-1.4 1.4"/></>,
   key: <path d="M15.5 3a5.5 5.5 0 0 0-5.2 7.3L3 17.6V21h3.4l2-2v-2h2l2.8-2.8A5.5 5.5 0 1 0 15.5 3Zm2 4.5h.01"/>,
+  lock: <><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 5v2"/></>,
   logout: <path d="M10 17v4H4V3h6v4m-2 5h13m-4-4 4 4-4 4"/>,
   list: <><path d="M8 6h12M8 12h12M8 18h12"/><path d="M4 6h.01M4 12h.01M4 18h.01" strokeWidth="3"/></>,
   eye: <><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"/><circle cx="12" cy="12" r="2.5"/></>,

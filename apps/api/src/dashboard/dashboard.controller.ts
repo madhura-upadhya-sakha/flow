@@ -6,7 +6,8 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ConfigService } from '@nestjs/config';
 import type { Request } from 'express';
-import { LocalDashboardGuard } from '../auth/local-dashboard.guard';
+import { DashboardUploadGuard } from './dashboard-upload.guard';
+import { WorkspaceIdentityService } from '../auth/workspace-identity.service';
 import { localWorkspaceIdentity } from '../auth/local-workspace';
 import { Public } from '../common/decorators/public.decorator';
 import { DatabaseService } from '../database/database.service';
@@ -32,25 +33,32 @@ export class DashboardController {
     private readonly imports: TaskImportService,
     private readonly admin: WorkspaceAdministrationService,
     private readonly users: WorkspaceUsersService,
+    private readonly identity: WorkspaceIdentityService,
   ) {}
 
-  private async localWorkspace(request: Request) {
-    const identity = localWorkspaceIdentity(this.config, request);
-    if (!identity) throw new NotFoundException();
+  private async workspace(request: Request, action?: 'edit' | 'assign') {
+    request.res?.setHeader('Cache-Control', 'no-store');
+    const local = !request.headers.authorization && localWorkspaceIdentity(this.config, request);
+    const identity = local || await this.identity.resolve(request);
     const { workspaceId, userId } = identity;
     const { rows } = await this.db.pool.query<{ displayName: string; workspaceName: string; role: string; status: string; timezone: string }>(
       `SELECT m.name AS "displayName", w.name AS "workspaceName", m.role, m.status, COALESCE((SELECT name FROM pg_timezone_names WHERE name = w.timezone), 'UTC') AS timezone FROM workspace_people m JOIN workspaces w ON w.id = m.workspace_id WHERE m.workspace_id = $1 AND m.user_id = $2`,
       [workspaceId, userId],
     );
-    if (!rows[0]) throw new NotFoundException('Local workspace membership is missing.');
+    if (!rows[0]) throw new NotFoundException('Workspace membership is missing.');
     const { status, ...member } = rows[0];
     if (status !== 'active') throw new ForbiddenException('An active workspace membership is required.');
-    return { workspaceId, userId, ...member, canViewAdministration: hasWorkspaceAdminRole(member.role) };
+    const canViewAdministration = hasWorkspaceAdminRole(member.role);
+    if (!local && !['GET', 'HEAD'].includes(request.method) && !canViewAdministration) {
+      const allowed = action && await this.admin.canEditProjectsAndTasks(workspaceId, member.role, action === 'assign');
+      if (!allowed) throw new ForbiddenException('Your workspace role does not allow this change.');
+    }
+    return { workspaceId, userId, ...member, canViewAdministration };
   }
 
   @Get()
   async getDashboard(@Req() request: Request) {
-    const workspace = await this.localWorkspace(request);
+    const workspace = await this.workspace(request);
     const result = await this.db.pool.query(
       `SELECT
         (SELECT jsonb_build_object('name', s.name, 'daysRemaining', s.ends_on - today.local_date)
@@ -83,7 +91,7 @@ export class DashboardController {
   }
 
   private async administrator(request: Request) {
-    const workspace = await this.localWorkspace(request);
+    const workspace = await this.workspace(request);
     if (!workspace.canViewAdministration) throw new ForbiddenException('Workspace administrator access is required.');
     return workspace;
   }
@@ -100,7 +108,7 @@ export class DashboardController {
 
   @Get('administration/users/:id')
   async userProfile(@Req() request: Request, @Param('id') id: string) {
-    const workspace = await this.localWorkspace(request);
+    const workspace = await this.workspace(request);
     const memberId = uuid(id);
     if (memberId !== workspace.userId && !workspace.canViewAdministration) {
       throw new ForbiddenException('Workspace administrator access is required.');
@@ -162,7 +170,7 @@ export class DashboardController {
 
   @Get('workspace-panels')
   async workspacePanels(@Req() request: Request) {
-    const { workspaceId, timezone } = await this.localWorkspace(request);
+    const { workspaceId, timezone } = await this.workspace(request);
     const { rows: [panels] } = await this.db.pool.query(
       `WITH week AS (
          SELECT date_trunc('week', CURRENT_TIMESTAMP AT TIME ZONE $2)::date AS monday
@@ -189,7 +197,7 @@ export class DashboardController {
 
   @Get('unread-notifications')
   async unreadNotifications(@Req() request: Request) {
-    const { workspaceId, userId } = await this.localWorkspace(request);
+    const { workspaceId, userId } = await this.workspace(request);
     const { rows: [total] } = await this.db.pool.query(
       'SELECT count(*)::int AS count FROM notifications WHERE workspace_id = $1 AND recipient_user_id = $2 AND read_at IS NULL',
       [workspaceId, userId],
@@ -199,7 +207,7 @@ export class DashboardController {
 
   @Get('overview')
   async overview(@Req() request: Request) {
-    const { workspaceId, userId, timezone } = await this.localWorkspace(request);
+    const { workspaceId, userId, timezone } = await this.workspace(request);
     const { rows: [overview] } = await this.db.pool.query(
       `WITH bounds AS (
          SELECT date_trunc('week', CURRENT_TIMESTAMP AT TIME ZONE $3)::date AS monday
@@ -230,7 +238,7 @@ export class DashboardController {
 
   @Post('tasks/:id/time-entries')
   async logTaskTime(@Req() request: Request, @Param('id') id: string, @Body() body?: Input) {
-    const { workspaceId, userId } = await this.localWorkspace(request);
+    const { workspaceId, userId } = await this.workspace(request, 'edit');
     const minutes = body?.minutes;
     if (typeof minutes !== 'number' || !Number.isInteger(minutes) || minutes < 1 || minutes > 1440) {
       throw new BadRequestException('Enter whole minutes between 1 and 1440.');
@@ -249,7 +257,7 @@ export class DashboardController {
 
   @Get('board-cards')
   async getBoardCards(@Req() request: Request, @Query('projectId') projectId?: string) {
-    const { workspaceId } = await this.localWorkspace(request);
+    const { workspaceId } = await this.workspace(request);
     const scope = projectId === undefined ? null : uuid(projectId);
     const { rows: [result] } = await this.db.pool.query<{ cards: unknown[]; visibleProject: boolean }>(
       `WITH cards AS (
@@ -273,7 +281,7 @@ export class DashboardController {
 
   @Get('projects/:id/overview')
   async getProjectOverview(@Req() request: Request, @Param('id') id: string) {
-    const { workspaceId } = await this.localWorkspace(request);
+    const { workspaceId } = await this.workspace(request);
     const { rows: [overview] } = await this.db.pool.query(
       `WITH project_tasks AS (
          SELECT id, assignee_id, status, estimate_minutes FROM tasks WHERE workspace_id = $1 AND project_id = $2
@@ -313,7 +321,7 @@ export class DashboardController {
 
   @Post('projects')
   async createProject(@Req() request: Request, @Body() body?: Input) {
-    const { workspaceId, userId } = await this.localWorkspace(request);
+    const { workspaceId, userId } = await this.workspace(request);
     const name = requiredText(body?.name, 'a project name', 200);
     const description = optionalText(body?.description, 'a description', 5000);
     const status = requiredText(body?.status ?? 'On track', 'a project status', 64);
@@ -340,7 +348,7 @@ export class DashboardController {
   @Patch('projects/:id')
   async updateProject(@Req() request: Request, @Param('id') id: string, @Body() body?: Input) {
     uuid(id);
-    const { workspaceId, userId } = await this.localWorkspace(request);
+    const { workspaceId, userId } = await this.workspace(request, 'edit');
     const date = dueDate(body?.dueDate);
     const startDate = dueDate(body?.startDate);
     if (startDate && date && startDate > date) throw new BadRequestException('The start date must be on or before the due date.');
@@ -375,7 +383,7 @@ export class DashboardController {
   async updateTask(@Req() request: Request, @Param('id') id: string, @Body() body?: Input) {
     uuid(id);
     if (body?.done === undefined) return this.saveTask(request, body, id);
-    const { workspaceId, userId } = await this.localWorkspace(request);
+    const { workspaceId, userId } = await this.workspace(request, 'edit');
     if (typeof body.done !== 'boolean') throw new BadRequestException('Provide a boolean completion state.');
     const { rows } = await this.db.pool.query(
       `UPDATE tasks SET status = $1, updated_at = CURRENT_TIMESTAMP, updated_by = $2
@@ -387,7 +395,7 @@ export class DashboardController {
   }
 
   private async saveTask(request: Request, body?: Input, id?: string) {
-    const { workspaceId, userId } = await this.localWorkspace(request);
+    const { workspaceId, userId } = await this.workspace(request, id ? 'assign' : undefined);
     const projectId = uuid(body?.projectId);
     const assigneeId = body?.assigneeId ? uuid(body.assigneeId) : null;
     const title = requiredText(body?.title, 'a task title', 240);
@@ -442,27 +450,27 @@ export class DashboardController {
 
   @Get('tasks/:id/details')
   async getTaskDetails(@Req() request: Request, @Param('id') id: string) {
-    const { workspaceId } = await this.localWorkspace(request);
+    const { workspaceId } = await this.workspace(request);
     return this.taskDetails.details(workspaceId, uuid(id));
   }
 
   @Patch('tasks/:id/details')
   async patchTaskDetails(@Req() request: Request, @Param('id') id: string, @Body() body?: Input) {
-    const { workspaceId, userId } = await this.localWorkspace(request);
+    const { workspaceId, userId } = await this.workspace(request, Object.hasOwn(body ?? {}, 'assigneeId') ? 'assign' : 'edit');
     return this.taskDetails.update(workspaceId, userId, uuid(id), body);
   }
 
   @Post('tasks/:id/subtasks')
   async createSubtask(@Req() request: Request, @Param('id') id: string, @Body() body?: Input) {
-    const { workspaceId, userId } = await this.localWorkspace(request);
+    const { workspaceId, userId } = await this.workspace(request);
     return this.taskDetails.createSubtask(workspaceId, userId, uuid(id), body);
   }
 
   @Post('tasks/:id/attachments')
-  @UseGuards(LocalDashboardGuard)
+  @UseGuards(DashboardUploadGuard)
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: maxTaskAttachmentBytes, files: 1, fields: 0 } }))
   async attachTaskFile(@Req() request: Request, @Param('id') id: string, @UploadedFile() file?: TaskUpload) {
-    const { workspaceId, userId } = await this.localWorkspace(request);
+    const { workspaceId, userId } = await this.workspace(request, 'edit');
     return this.taskDetails.attachFile(workspaceId, userId, uuid(id), file);
   }
 
@@ -470,7 +478,7 @@ export class DashboardController {
   @Header('Cache-Control', 'no-store')
   @Header('X-Content-Type-Options', 'nosniff')
   async downloadTaskFile(@Req() request: Request, @Param('id') id: string, @Param('fileId') fileId: string) {
-    const { workspaceId } = await this.localWorkspace(request);
+    const { workspaceId } = await this.workspace(request);
     const file = await this.taskDetails.attachmentFile(workspaceId, uuid(id), uuid(fileId));
     const name = encodeURIComponent(file.name).replace(/[!'()*]/g, (char) => '%' + char.charCodeAt(0).toString(16).toUpperCase());
     return new StreamableFile(file.content, { type: 'application/octet-stream', disposition: `attachment; filename="attachment"; filename*=UTF-8''${name}` });
@@ -478,19 +486,19 @@ export class DashboardController {
 
   @Post('tasks/:id/attachment-links')
   async attachTaskLink(@Req() request: Request, @Param('id') id: string, @Body() body?: Input) {
-    const { workspaceId } = await this.localWorkspace(request);
+    const { workspaceId } = await this.workspace(request, 'edit');
     return this.taskDetails.attachLink(workspaceId, uuid(id), body);
   }
 
   @Patch('tasks/:id/board-position')
   async moveTask(@Req() request: Request, @Param('id') id: string, @Body() body?: Input) {
-    const { workspaceId, userId } = await this.localWorkspace(request);
+    const { workspaceId, userId } = await this.workspace(request, 'edit');
     return this.board.move(workspaceId, userId, uuid(id), body);
   }
 
   @Get('tasks/:id/activity')
   async getTaskActivity(@Req() request: Request, @Param('id') id: string, @Query('cursor') cursor?: string) {
-    const { workspaceId } = await this.localWorkspace(request);
+    const { workspaceId } = await this.workspace(request);
     const { rows } = await this.db.pool.query<{ items: { id: string }[]; validCursor: boolean }>(
       `WITH anchor AS (
          SELECT created_at, id FROM task_activity WHERE workspace_id = $1 AND task_id = $2 AND id = $3
@@ -514,7 +522,7 @@ export class DashboardController {
 
   @Get('tasks/:id/comments')
   async getTaskComments(@Req() request: Request, @Param('id') id: string, @Query('cursor') cursor?: string) {
-    const { workspaceId } = await this.localWorkspace(request);
+    const { workspaceId } = await this.workspace(request);
     const { rows } = await this.db.pool.query<{ items: { id: string }[]; validCursor: boolean }>(
       `WITH anchor AS (
          SELECT created_at, id FROM task_comments WHERE workspace_id = $1 AND task_id = $2 AND id = $3
@@ -538,7 +546,7 @@ export class DashboardController {
 
   @Post('tasks/:id/comments')
   async addTaskComment(@Req() request: Request, @Param('id') id: string, @Body() body?: Input) {
-    const { workspaceId, userId } = await this.localWorkspace(request);
+    const { workspaceId, userId } = await this.workspace(request, 'edit');
     const text = requiredText(body?.body, 'a comment', 5000);
     const { rows } = await this.db.pool.query<{ body: string }>(
       `WITH saved AS (
@@ -559,7 +567,7 @@ export class DashboardController {
   @Delete('tasks/:id')
   async deleteTask(@Req() request: Request, @Param('id') id: string) {
     uuid(id);
-    const { workspaceId } = await this.localWorkspace(request);
+    const { workspaceId } = await this.workspace(request);
     const client = await this.db.pool.connect();
     try {
       await client.query('BEGIN');
@@ -580,7 +588,7 @@ export class DashboardController {
   @Delete('projects/:id')
   async deleteProject(@Req() request: Request, @Param('id') id: string) {
     uuid(id);
-    const { workspaceId } = await this.localWorkspace(request);
+    const { workspaceId } = await this.workspace(request);
     const client = await this.db.pool.connect();
     try {
       await client.query('BEGIN');
@@ -602,19 +610,19 @@ export class DashboardController {
 
   @Post('imports/preview')
   async previewImport(@Req() request: Request, @Body() body?: Input) {
-    const { workspaceId } = await this.localWorkspace(request);
+    const { workspaceId } = await this.workspace(request);
     return this.imports.preview(workspaceId, body);
   }
 
   @Post('imports')
   async submitImport(@Req() request: Request, @Body() body?: Input) {
-    const { workspaceId, userId } = await this.localWorkspace(request);
+    const { workspaceId, userId } = await this.workspace(request);
     return this.imports.submit(workspaceId, userId, body);
   }
 
   @Get('imports')
   async importHistory(@Req() request: Request, @Query('cursor') cursor?: string) {
-    const { workspaceId } = await this.localWorkspace(request);
+    const { workspaceId } = await this.workspace(request);
     return this.imports.history(workspaceId, cursor);
   }
 
@@ -622,13 +630,13 @@ export class DashboardController {
   @Header('Content-Type', 'text/csv; charset=utf-8')
   @Header('Content-Disposition', 'attachment; filename="import-errors.csv"')
   async importReport(@Req() request: Request, @Param('id') id: string) {
-    const { workspaceId } = await this.localWorkspace(request);
+    const { workspaceId } = await this.workspace(request);
     return this.imports.report(workspaceId, uuid(id));
   }
 
   @Get('team-workload')
   async getTeamWorkload(@Req() request: Request, @Query('projectId') projectId?: string) {
-    const { workspaceId, timezone } = await this.localWorkspace(request);
+    const { workspaceId, timezone } = await this.workspace(request);
     const filter = projectId === undefined ? null : uuid(projectId);
     if (filter && !(await this.db.pool.query('SELECT id FROM projects WHERE workspace_id = $1 AND id = $2', [workspaceId, filter])).rowCount) {
       throw new NotFoundException('Project not found.');
@@ -678,7 +686,7 @@ export class DashboardController {
 
   @Patch('members/:id/weekly-capacity')
   async updateMemberCapacity(@Req() request: Request, @Param('id') id: string, @Body() body?: Input) {
-    const { workspaceId, userId, canViewAdministration } = await this.localWorkspace(request);
+    const { workspaceId, userId, canViewAdministration } = await this.workspace(request);
     if (!canViewAdministration) throw new ForbiddenException('Workspace administrator access is required.');
     const { rows: [member] } = await this.db.pool.query(
       `UPDATE workspace_members SET weekly_capacity_minutes = $3, updated_by = $4, updated_at = CURRENT_TIMESTAMP
@@ -691,7 +699,7 @@ export class DashboardController {
 
   @Get('members')
   async listMembers(@Req() request: Request) {
-    const { workspaceId } = await this.localWorkspace(request);
+    const { workspaceId } = await this.workspace(request);
     const { rows } = await this.db.pool.query<{
       id: string;
       name: string;
@@ -707,7 +715,7 @@ export class DashboardController {
 
   @Get('members/:id')
   async getMember(@Req() request: Request, @Param('id') id: string) {
-    const { workspaceId } = await this.localWorkspace(request);
+    const { workspaceId } = await this.workspace(request);
     const { rows: [member] } = await this.db.pool.query(
       `SELECT m.user_id AS id, m.name, m.email, m.role, m.created_at AS "joinedAt"
        FROM workspace_people m WHERE m.workspace_id = $1 AND m.user_id = $2`,

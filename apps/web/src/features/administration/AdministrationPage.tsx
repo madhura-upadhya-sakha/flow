@@ -1,7 +1,8 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { OperationsDialog, OperationsHeading } from '../../components/workspace/OperationsLayout';
 import { Icon } from '../../lib/icons';
-import { dashboardRequest, formatCapacity, initials, type Member } from '../dashboard/data';
+import { formatCapacity, initials, type Member } from '../dashboard/data';
+import { useDashboardRequest } from '../../auth/DashboardSession';
 import { AuditLogs } from './AuditLogs';
 
 export type AdminSection = 'organization' | 'departments' | 'roles' | 'audit';
@@ -167,6 +168,7 @@ function ReportingFields({ data }: { data: Organization }) {
 }
 
 function AdministrationWorkspace({ section, members }: { section: Exclude<AdminSection, 'audit'>; members: Member[] }) {
+  const dashboardRequest = useDashboardRequest();
   const [data, setData] = useState<AdminData>();
   const [summary, setSummary] = useState<Organization>();
   const [filter, setFilter] = useState('');

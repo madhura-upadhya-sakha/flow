@@ -1,5 +1,6 @@
 import { useEffect, useState, type CSSProperties } from 'react';
-import { dashboardRequest, formatCapacity, type Task } from './data';
+import { formatCapacity, type Task } from './data';
+import { useDashboardRequest } from '../../auth/DashboardSession';
 
 export type Activity = {
   id: string;
@@ -30,6 +31,7 @@ type Props = {
 };
 
 export function WorkspacePanels({ tasks, timezone, revision, onOpenTask }: Props) {
+  const dashboardRequest = useDashboardRequest();
   const [data, setData] = useState<Panels>();
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);

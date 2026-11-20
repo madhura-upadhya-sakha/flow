@@ -11,7 +11,7 @@ async function bootstrap(): Promise<void> {
 
   app.setGlobalPrefix('api');
   app.useBodyParser('json', { limit: '2mb' });
-  app.enableCors({ origin: config.get<string>('WEB_ORIGIN', 'http://localhost:5173') });
+  app.enableCors({ origin: config.get<string>('WEB_ORIGIN', 'http://localhost:5173'), credentials: true });
   app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true, forbidNonWhitelisted: true }));
 
   const port = Number(config.get<string>('PORT', '3000'));
@@ -19,7 +19,8 @@ async function bootstrap(): Promise<void> {
     throw new Error('PORT must be an integer between 1 and 65535.');
   }
   const localDashboard = process.env.NODE_ENV !== 'production' && config.get('LOCAL_DASHBOARD_WORKSPACE_ID');
-  await app.listen(port, localDashboard ? '127.0.0.1' : '0.0.0.0');
+  const host = config.get<string>('API_HOST') || (localDashboard ? '127.0.0.1' : '0.0.0.0');
+  await app.listen(port, host);
 }
 
 void bootstrap();

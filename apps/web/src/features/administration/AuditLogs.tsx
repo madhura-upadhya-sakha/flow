@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { OperationsDialog, OperationsHeading } from '../../components/workspace/OperationsLayout';
 import { Icon } from '../../lib/icons';
-import { dashboardRequest, dateKey, initials } from '../dashboard/data';
+import { dateKey, initials } from '../dashboard/data';
+import { useDashboardRequest } from '../../auth/DashboardSession';
 
 type Event = { id: string; action: string; module: string; record: string; actor: string | null; fields: string[]; createdAt: string };
 type Audit = { items: Event[]; nextCursor: string | null; timezone: string };
@@ -22,6 +23,7 @@ function AuditValueCard({ label, values, fields }: { label: string; values: Chan
 function AuditDetailPanel({ event, displayTime, timezone, onClose }: {
   event: Event; displayTime: string; timezone?: string; onClose: () => void;
 }) {
+  const dashboardRequest = useDashboardRequest();
   const [detail, setDetail] = useState<AuditDetail>();
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
@@ -68,6 +70,7 @@ function AuditDetailPanel({ event, displayTime, timezone, onClose }: {
 }
 
 export function AuditLogs({ workspaceSearch }: { workspaceSearch: string }) {
+  const dashboardRequest = useDashboardRequest();
   const [search, setSearch] = useState('');
   const [module, setModule] = useState('');
   const [from, setFrom] = useState('');

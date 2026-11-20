@@ -9,7 +9,7 @@ import { notificationWorkspace, requestApi, setNotificationWorkspace, type Reque
 const profilePath = 'account/profile';
 type Profile = {
   id: string; name: string; email: string; status: 'active'; roleLabel: string; workspaceName: string;
-  activeProjects: number; openTasks: number; session: 'local' | 'auth0';
+  activeProjects: number; openTasks: number; session: 'local' | 'auth0' | 'password';
 };
 
 function ProfileEditor({ profile, request, onClose, onSave }: {
@@ -93,7 +93,7 @@ function ProfileContent({ request, onSave, workspacePicker }: {
           <Icon name="shield" />
           <div>
             <strong>{profile.session === 'auth0' ? 'Account secured' : 'Local demo session'}</strong>
-            <small>{profile.session === 'auth0' ? 'Signed in with Auth0' : 'Using the configured local workspace'}</small>
+            <small>{profile.session === 'auth0' ? 'Signed in with Auth0' : profile.session === 'password' ? 'Signed in with a password' : 'Using the configured local workspace'}</small>
           </div>
         </div>
       </section>

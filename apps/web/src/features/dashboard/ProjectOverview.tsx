@@ -1,6 +1,7 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import { Icon, type IconName } from '../../lib/icons';
-import { dashboardRequest, dateKey, dateLabel, formatCapacity, initials, isDone, type Project, type Task } from './data';
+import { dateKey, dateLabel, formatCapacity, initials, isDone, type Project, type Task } from './data';
+import { useDashboardRequest } from '../../auth/DashboardSession';
 import { projectPath } from './projectRoutes';
 import { activityMessage, type Activity } from './WorkspacePanels';
 
@@ -99,6 +100,7 @@ function ProjectDeadlines({ tasks, today, projectId, onEditTask }: {
 }
 
 export default function ProjectOverview({ project, tasks, timezone, revision, onEditProject, onEditTask, onOpenActivityTask }: Props) {
+  const dashboardRequest = useDashboardRequest();
   const [data, setData] = useState<Overview>();
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);

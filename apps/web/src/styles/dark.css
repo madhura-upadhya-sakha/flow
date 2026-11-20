@@ -119,7 +119,7 @@
   --drawer-muted: var(--muted);
 }
 [data-theme="dark"] .activity-row-button:hover { background: var(--dark-hover); }
-[data-theme="dark"] :is(.drawer-tabs button[aria-selected=true], .drawer-item-list a) { color: var(--dark-accent); }
+[data-theme="dark"] :is(.drawer-tabs button[aria-selected=true], .drawer-item-list :is(a, button.attachment-download)) { color: var(--dark-accent); }
 [data-theme="dark"] .drawer-tabs button[aria-selected=true] { border-color: var(--dark-accent); }
 [data-theme="dark"] .drawer-labels li { background: var(--dark-hover); }
 [data-theme="dark"] .drawer-status { color: #c8bcff; border-color: #483a73; background: #30264d; }

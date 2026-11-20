@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { OperationsHeading } from '../../components/workspace/OperationsLayout';
 import { Icon } from '../../lib/icons';
-import { dashboardRequest, dashboardUrl, type Project } from '../dashboard/data';
+import type { Project } from '../dashboard/data';
+import { DashboardDownload, useDashboardRequest } from '../../auth/DashboardSession';
 
 type Row = { line: number } & ({ error: string } | { skipped: true } | { title: string; status: string; project?: string });
 type Job = { id: string; fileName: string | null; projectName: string; taskCount: number; failedCount: number; skippedCount: number; createdAt: string };
@@ -37,6 +38,7 @@ function RowPreview({ rows }: { rows: Row[] }) {
 }
 
 export function ImportTasks({ projects, onComplete }: { projects: Project[]; onComplete: () => Promise<void> }) {
+  const dashboardRequest = useDashboardRequest();
   const input = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState(0);
   const [upload, setUpload] = useState<Upload>();
@@ -129,8 +131,8 @@ export function ImportTasks({ projects, onComplete }: { projects: Project[]; onC
       description="Bring structured work into Flowdeck with validation before anything is created.">
       <a className="button button--secondary" href={`${import.meta.env.BASE_URL}task-import-template.xlsx`} download><Icon name="download" />Sample template</a>
     </OperationsHeading>
-    {retry && <p className="import-retry-note">Upload a corrected workbook containing only the failed rows. <a
-      href={dashboardUrl(`/imports/${encodeURIComponent(retry)}/report`)}>Download the previous error report</a>.</p>}
+    {retry && <p className="import-retry-note">Upload a corrected workbook containing only the failed rows. <DashboardDownload
+      path={`/imports/${encodeURIComponent(retry)}/report`} filename="import-errors.csv">Download the previous error report</DashboardDownload>.</p>}
     <ol className="import-steps">{steps.map((label, index) => <li key={label} aria-current={step === index ? 'step' : undefined}>
       <span className={step >= index ? 'import-step-active' : ''}>{step > index ? <Icon name="check" /> : index + 1}</span>
       <div><small>Step {index + 1}</small><strong>{label}</strong></div>
@@ -179,7 +181,7 @@ export function ImportTasks({ projects, onComplete }: { projects: Project[]; onC
         </>}
         {step === 4 && job && <>
           <h2>Import complete</h2><p role="status">{job.taskCount} imported · {job.failedCount} failed · {job.skippedCount} skipped</p>
-          {job.failedCount > 0 && <a className="button button--secondary" href={dashboardUrl(`/imports/${job.id}/report`)}><Icon name="download" />Error report</a>}
+          {job.failedCount > 0 && <DashboardDownload className="button button--secondary" path={`/imports/${job.id}/report`} filename="import-errors.csv"><Icon name="download" />Error report</DashboardDownload>}
         </>}
       </div>}
       {!projects.length && <p className="import-notice" role="status">Create a project before importing tasks.</p>}
@@ -201,6 +203,7 @@ export function ImportTasks({ projects, onComplete }: { projects: Project[]; onC
 }
 
 export function ImportHistory() {
+  const dashboardRequest = useDashboardRequest();
   const [history, setHistory] = useState<History>();
   const [cursor, setCursor] = useState<string>();
   const [attempt, setAttempt] = useState(0);
@@ -237,7 +240,7 @@ export function ImportHistory() {
             {item.failedCount ? 'Completed with errors' : 'Completed'}</span></td>
           <td>{item.taskCount}</td><td>{item.failedCount}</td><td>{item.skippedCount}</td>
           <td><div className="import-history-actions">
-            <a className="icon-button" href={dashboardUrl(`/imports/${item.id}/report`)} title="Download error report" aria-label={`Download error report for ${item.fileName ?? item.projectName}`}><Icon name="download" /></a>
+            <DashboardDownload className="icon-button" path={`/imports/${item.id}/report`} filename="import-errors.csv" title="Download error report" aria-label={`Download error report for ${item.fileName ?? item.projectName}`}><Icon name="download" /></DashboardDownload>
             <a className="icon-button" href={item.failedCount ? `/imports/new?retry=${item.id}` : '/imports/new'}
               title={item.failedCount ? 'Retry failed rows' : 'Start a new import'} aria-label={item.failedCount ? 'Retry failed rows' : 'Start a new import'}><Icon name="history" /></a>
           </div></td>

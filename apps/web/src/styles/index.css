@@ -909,7 +909,10 @@ button.activity-task-link:hover { text-decoration: underline; }
 .drawer-subtasks-heading span { color: var(--drawer-muted); font-size: 11px; }
 .drawer-item-list { margin: 9px 0; padding: 0; list-style: none; font-size: 12px; }
 .drawer-item-list li { padding: 5px 0; overflow-wrap: anywhere; }
-.drawer-item-list a { color: var(--purple); }
+.drawer-item-list :is(a, button.attachment-download) { color: var(--purple); }
+.attachment-download { cursor: pointer; font: inherit; text-align: left; background: transparent; }
+.drawer-item-list .attachment-download { border: 0; padding: 0; text-decoration: underline; }
+.drawer-attachments .attachment-download { width: 100%; }
 .drawer-item-list label { display: inline-flex; align-items: center; gap: 6px; }
 .drawer-tabs { display: flex; gap: 20px; margin-top: 31px; border-bottom: 1px solid var(--line); }
 .drawer-tabs button { padding: 10px 0; border: 0; border-bottom: 2px solid transparent; color: var(--drawer-muted); background: transparent; font-size: 11px; font-weight: 700; }
@@ -1238,7 +1241,7 @@ body:has(.create-task-dialog[open]) { overflow: hidden; }
 .drawer-section-heading .drawer-advanced { padding: 0; color: var(--drawer-muted); font-size: 11px; font-weight: 500; }
 .task-details-drawer--board .drawer-dependency { border-radius: 11px; }
 .drawer-attachments { margin: 10px 0 0; padding: 0; list-style: none; display: grid; gap: 7px; }
-.drawer-attachments a {
+.drawer-attachments :is(a, button.attachment-download) {
   display: grid;
   grid-template-columns: 20px minmax(0, 1fr) auto;
   align-items: center;
@@ -1251,10 +1254,10 @@ body:has(.create-task-dialog[open]) { overflow: hidden; }
   text-decoration: none;
   font-size: 12px;
 }
-.drawer-attachments a:hover { background: var(--drawer-subtle); }
+.drawer-attachments :is(a, button.attachment-download):hover { background: var(--drawer-subtle); }
 .drawer-attachments svg { width: 17px; height: 17px; color: var(--purple); }
 .drawer-attachments strong { overflow-wrap: anywhere; }
-.drawer-attachments a > span { color: var(--drawer-muted); white-space: nowrap; font-size: 11px; }
+.drawer-attachments :is(a, button.attachment-download) > span { color: var(--drawer-muted); white-space: nowrap; font-size: 11px; }
 .drawer-subtask-form { display: flex; align-items: center; gap: 2px; margin-top: 14px; }
 .drawer-subtask-form .icon-button { width: 27px; height: 29px; }
 .drawer-subtask-form input { width: 100%; min-width: 0; color: var(--ink); background: var(--drawer-surface); border: 1px solid transparent; border-radius: 2px; font-size: 12px; padding: 4px 5px; }
@@ -1289,7 +1292,7 @@ body:has(.create-task-dialog[open]) { overflow: hidden; }
   .task-details-drawer--board .drawer-task-section { margin-top: 37px; }
   .task-details-drawer--board .drawer-task-section h2 { font-size: 15px; margin-bottom: 13px; }
   .task-details-drawer--board .drawer-dependency select { min-height: 53px; font-size: 13px; }
-  .drawer-attachments a { min-height: 52px; font-size: 13px; }
+  .drawer-attachments :is(a, button.attachment-download) { min-height: 52px; font-size: 13px; }
   .task-details-drawer--board .drawer-add-attachment { min-height: 38px; font-size: 14px; }
   .drawer-subtask-form { margin-top: 24px; }
   .task-details-drawer--board .drawer-tabs { margin-top: 34px; }
@@ -1489,9 +1492,9 @@ body:has(.create-task-dialog[open]) { overflow: hidden; }
 .task-details-drawer--timeline .drawer-advanced { font-size: 9px; }
 .task-details-drawer--timeline .drawer-dependency select { min-height: 36px; font-size: 10px; }
 .task-details-drawer--timeline .drawer-attachments { gap: 5px; margin-top: 6px; }
-.task-details-drawer--timeline .drawer-attachments a { grid-template-columns: 13px minmax(0, 1fr) auto; gap: 6px; min-height: 35px; padding: 6px 8px; border-radius: 6px; font-size: 10px; }
+.task-details-drawer--timeline .drawer-attachments :is(a, button.attachment-download) { grid-template-columns: 13px minmax(0, 1fr) auto; gap: 6px; min-height: 35px; padding: 6px 8px; border-radius: 6px; font-size: 10px; }
 .task-details-drawer--timeline .drawer-attachments svg { width: 12px; height: 12px; }
-.task-details-drawer--timeline .drawer-attachments a > span { font-size: 9px; }
+.task-details-drawer--timeline .drawer-attachments :is(a, button.attachment-download) > span { font-size: 9px; }
 .task-details-drawer--timeline .drawer-add-attachment { margin-top: 8px; }
 .task-details-drawer--timeline .drawer-subtask-form { margin-top: 12px; }
 .task-details-drawer--timeline :is(.drawer-subtask-form input, .drawer-subtasks-heading span) { font-size: 10px; }

@@ -51,7 +51,14 @@ For a local database-backed dashboard, set `LOCAL_DASHBOARD_WORKSPACE_ID` and `L
 
 Database initialization starts with empty tables. After configuring the local workspace and owner, open Projects and create the first project for testing.
 
-The local dashboard endpoints are disabled in production. Auth0-backed dashboard access still requires user identity mapping and workspace authorization.
+Local demo access is disabled in production and when `AUTH0_ISSUER` is set to an Auth0 tenant. The dashboard uses the signed-in user's active workspace membership in Auth0 mode. Creating and deleting dashboard records requires the workspace owner or admin role. Authenticated users with the Projects & tasks Edit permission can also update existing projects and tasks. Changing task assignees requires Assign permission.
+
+### Enable email and password sign-in
+
+1. In Auth0, register a Single Page Application and enable a database connection. Use `http://localhost:5173` for Allowed Callback URLs and Allowed Web Origins, and `http://localhost:5173/signed-out` for Allowed Logout URLs.
+2. Register an Auth0 API and use its identifier for both `VITE_AUTH0_AUDIENCE` in `apps/web/.env.local` and `AUTH0_AUDIENCE` in `apps/api/.env`. Set `VITE_AUTH0_DOMAIN` and `VITE_AUTH0_CLIENT_ID` to the SPA settings. Set `AUTH0_ISSUER` to the tenant URL, including `https://` and the trailing slash.
+3. Create the user's credential account in Auth0. Add a row to `user_identities` with the tenant issuer, the Auth0 user ID as `subject`, and the existing Flow user's UUID as `user_id`. The Flow user must have an active workspace membership. Match the Auth0 user ID exactly, including its provider prefix.
+4. Restart the web and API processes and open [Flow](http://localhost:5173/dashboard). Choose **Sign in**.
 
 ## Development commands
 
@@ -68,3 +75,19 @@ API modules follow a feature-first pattern. Add DTOs/controllers/services/reposi
 ### Account actions
 
 For Auth0 database accounts, set `VITE_AUTH0_DB_CONNECTION` to the database connection used by the application. Change password sends a reset email through Auth0. Add the deployed application's `/signed-out` URL to the Auth0 application's Allowed Logout URLs. With Auth0 absent, Logout exits the local workspace UI for the current tab and Change password explains that local demo users have no password to reset.
+
+### Database-backed password sign-in
+
+Use this mode for a workspace that should accept passwords directly in Flowdeck. Keep the Auth0 frontend settings unset when using this mode. Configure `PASSWORD_AUTH_WORKSPACE_ID` in `apps/api/.env` with the existing workspace UUID. Existing databases need [migration 015](database/migrations/015_password_sessions.sql) applied before enabling the mode.
+
+From the repository root, build the API and set the password for an existing active user. Use the user's original account email.
+
+```bash
+npm run build --workspace @flow/api
+read -r -s -p 'New Flowdeck password: ' flowdeck_password
+printf '\n'
+printf '%s\n' "$flowdeck_password" | node --env-file=apps/api/.env apps/api/scripts/set-password.cjs user@example.com
+unset flowdeck_password
+```
+
+Set `DATABASE_AUTH_ENABLED=true` in `apps/api/.env`, restart the API, and open [Flowdeck login](http://localhost:5173/login). Sign out revokes the current session. A password change revokes all password sessions for that user and returns them to login. The password command also lets an administrator reset a forgotten password.

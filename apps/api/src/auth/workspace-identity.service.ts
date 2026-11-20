@@ -1,3 +1,4 @@
+import { PasswordSessionService } from './password-session.service';
 import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Request } from 'express';
@@ -12,9 +13,12 @@ export class WorkspaceIdentityService {
     private readonly db: DatabaseService,
     private readonly config: ConfigService,
     private readonly auth: Auth0Guard,
+    private readonly passwords: PasswordSessionService,
   ) {}
 
   async resolve(request: Request) {
+    if (!request.headers.authorization && this.passwords.enabled) return this.passwords.resolve(request);
+
     const local = !request.headers.authorization && localWorkspaceIdentity(this.config, request);
     if (local) {
       const result = await this.db.pool.query(

@@ -1,12 +1,14 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Icon } from '../../lib/icons';
-import { dashboardRequest, initials } from './data';
+import { initials } from './data';
+import { useDashboardRequest } from '../../auth/DashboardSession';
 
 type Comment = { id: string; author: string; body: string; createdAt: string };
 type Page = { items: Comment[]; nextCursor: string | null };
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 
 export function TaskComments({ taskId, onPosted, drawerUser }: { taskId: string; onPosted: () => void; drawerUser?: string }) {
+  const dashboardRequest = useDashboardRequest();
   const path = `/tasks/${taskId}/comments`;
   const [page, setPage] = useState<Page>();
   const [body, setBody] = useState('');

@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { OperationsDialog } from '../../components/workspace/OperationsLayout';
-import { dashboardRequest } from '../dashboard/data';
+import { useDashboardRequest } from '../../auth/DashboardSession';
 import { userPath, userStatuses, type UserDetail, type WorkspaceUser } from './directoryData';
 
 export type UserEditMode = { kind: 'edit'; user: WorkspaceUser } | { kind: 'create' } | { kind: 'invite' };
@@ -10,6 +10,7 @@ type Options = { departments: Option[]; managers: Option[]; roles: { key: string
 export function UserEditor({ mode, onClose, onSave }: {
   mode: UserEditMode; onClose: () => void; onSave: (detail?: UserDetail) => void;
 }) {
+  const dashboardRequest = useDashboardRequest();
   const [options, setOptions] = useState<Options>();
   const [loadingError, setLoadingError] = useState('');
   const [attempt, setAttempt] = useState(0);

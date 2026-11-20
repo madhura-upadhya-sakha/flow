@@ -50,21 +50,26 @@ export class DashboardRequestError extends Error {
   }
 }
 
-export function dashboardUrl(path = '') {
+function dashboardUrl(path = '') {
   return `${apiUrl}/dashboard${path}`;
 }
 
-export async function dashboardRequest<T>(path = '', options?: RequestInit): Promise<T> {
+export async function dashboardResponse(path = '', options?: RequestInit): Promise<Response> {
   const headers = new Headers(options?.headers);
   if (options?.body && !(options.body instanceof FormData) && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
-  const response = await fetch(dashboardUrl(path), { ...options, headers });
+  const response = await fetch(dashboardUrl(path), { credentials: 'include', ...options, headers });
   if (!response.ok) {
     const error = await response.json().catch(() => null);
     throw new DashboardRequestError(response.status < 500 && typeof error?.message === 'string'
       ? error.message : 'The dashboard API is unavailable.', response.status);
   }
+  return response;
+}
+
+export async function dashboardRequest<T>(path = '', options?: RequestInit): Promise<T> {
+  const response = await dashboardResponse(path, options);
   return response.json();
 }
 

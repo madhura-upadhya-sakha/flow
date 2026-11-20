@@ -1,7 +1,8 @@
 import { lazy, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import type { Section } from '../../components/layout/AppShell';
 import { Icon } from '../../lib/icons';
-import { DashboardRequestError, dashboardRequest, dateLabel, initials, isDone, type Dashboard, type Member, type Project, type Task } from './data';
+import { DashboardRequestError, dateLabel, initials, isDone, type Dashboard, type Member, type Project, type Task } from './data';
+import { useDashboardRequest } from '../../auth/DashboardSession';
 
 import { CreateTaskModal } from './CreateTaskModal';
 import type { BoardMove, BoardUpdate } from './TaskBoard';
@@ -65,6 +66,7 @@ function TaskRow({ task, pending, onToggle, onEdit }: { task: Task; pending: boo
 }
 
 export default function DashboardPage({ selectedProject, search, view, onNavigate, dashboard, setDashboard, editor, setEditor }: Props) {
+  const dashboardRequest = useDashboardRequest();
   const [error, setError] = useState('');
   const [drawer, setDrawer] = useState<{ id: string; variant?: 'board' | 'timeline' }>();
   const [activityRevision, setActivityRevision] = useState(0);

@@ -1,5 +1,6 @@
 import { useEffect, useState, type CSSProperties, type FormEvent } from 'react';
-import { dashboardRequest, formatCapacity, initials, type Member, type Project } from './data';
+import { formatCapacity, initials, type Member, type Project } from './data';
+import { useDashboardRequest } from '../../auth/DashboardSession';
 
 import { OperationsDialog, OperationsHeading } from '../../components/workspace/OperationsLayout';
 import { Icon } from '../../lib/icons';
@@ -11,6 +12,7 @@ type Workload = {
 type WorkRow = Workload & Member;
 
 function CapacityForm({ id, initial, onSave }: { id: string; initial: number; onSave: (minutes: number) => void }) {
+  const dashboardRequest = useDashboardRequest();
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -73,6 +75,7 @@ function CapacityChart({ rows }: { rows: WorkRow[] }) {
 export function TeamWorkload({ members, projects, search, canEditCapacity, sprint, onAddMember }: {
   members: Member[]; projects: Project[]; search: string; canEditCapacity: boolean; sprint: boolean; onAddMember: () => void;
 }) {
+  const dashboardRequest = useDashboardRequest();
   const [workload, setWorkload] = useState<Workload[]>();
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);

@@ -1,7 +1,8 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { projectPath } from './projectRoutes';
 import { Icon, type IconName } from '../../lib/icons';
-import { dashboardRequest, dateKey, dateLabel, isDone, type Dashboard, type Task } from './data';
+import { dateKey, dateLabel, isDone, type Dashboard, type Task } from './data';
+import { useDashboardRequest } from '../../auth/DashboardSession';
 
 type Day = { date: string; count: number };
 type Overview = { days: Day[]; previousCompletions: number; personalMinutes: number; workspaceMinutes: number };
@@ -146,6 +147,7 @@ type Props = {
 };
 
 export function DashboardSummary({ dashboard, matchingTasks, revision, onOpenTask }: Props) {
+  const dashboardRequest = useDashboardRequest();
   const [overview, setOverview] = useState<Overview>();
   const [metricsError, setMetricsError] = useState(false);
   const [attempt, setAttempt] = useState(0);

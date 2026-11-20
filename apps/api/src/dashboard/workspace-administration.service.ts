@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { DatabaseService } from '../database/database.service';
-import { customRolePrefix, displayWorkspaceRole, workspaceRoles } from './workspace-roles';
+import { customRolePrefix, displayWorkspaceRole, workspaceRoleKey, workspaceRoles } from './workspace-roles';
 import { dueDate, optionalText, requiredText, uuid } from './workspace-input';
 
 const modules = ['Projects & tasks', 'User management', 'Organization', 'Roles & permissions', 'Task imports', 'Audit logs'];
@@ -158,6 +158,14 @@ export class WorkspaceAdministrationService {
       .map(role => ({ ...role, members: (counts.get(customRolePrefix + role.key) ?? 0) + (counts.get(role.name.toLowerCase()) ?? 0) }))] };
   }
 
+  async canEditProjectsAndTasks(workspaceId: string, role: string, assign: boolean) {
+    const key = role.startsWith(customRolePrefix) ? role.slice(customRolePrefix.length) : workspaceRoleKey(role);
+    const effective = await this.findRole(this.db.pool, workspaceId, key);
+    const permissions = effective?.permissions ?? [];
+    return permissions.includes(permissionKey('Projects & tasks', 'Edit')) &&
+      (!assign || permissions.includes(permissionKey('Projects & tasks', 'Assign')));
+  }
+
   async createRole(workspace: AdminContext, input?: Input) {
     const name = requiredText(input?.name, 'a role name', 64);
     const key = randomUUID();
@@ -243,12 +251,16 @@ export class WorkspaceAdministrationService {
   }
 
   private async getRole(client: PoolClient, workspaceId: string, key: string): Promise<Role> {
+    const role = await this.findRole(client, workspaceId, key);
+    if (!role) throw new NotFoundException('Role not found.');
+    return role;
+  }
+
+  private async findRole(client: Pick<PoolClient, 'query'>, workspaceId: string, key: string) {
     const { rows: [configured] } = await client.query<Role>(
       'SELECT key, name, permissions FROM workspace_role_permissions WHERE workspace_id = $1 AND key = $2', [workspaceId, key],
     );
-    const role = configured ?? defaults.find(entry => entry.key === key);
-    if (!role) throw new NotFoundException('Role not found.');
-    return role;
+    return configured ?? defaults.find(entry => entry.key === key);
   }
 
   private async transaction(workspace: AdminContext, work: (client: PoolClient) => Promise<void>) {

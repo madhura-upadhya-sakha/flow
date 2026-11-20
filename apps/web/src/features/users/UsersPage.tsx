@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { OperationsHeading } from '../../components/workspace/OperationsLayout';
 import { Icon } from '../../lib/icons';
-import { dashboardRequest, formatCapacity, initials } from '../dashboard/data';
+import { formatCapacity, initials } from '../dashboard/data';
+import { useDashboardRequest } from '../../auth/DashboardSession';
 import { projectPath } from '../dashboard/projectRoutes';
 import { userAvatar, userPath, userStatuses, type Directory, type UserDetail, type UserStatus, type WorkspaceUser } from './directoryData';
 import { UserEditor, type UserEditMode } from './UserEditor';
@@ -16,6 +17,7 @@ function StatusPill({ status }: { status: UserStatus }) {
 }
 
 export default function UsersPage({ search, onChange }: { search: string; onChange: () => void }) {
+  const dashboardRequest = useDashboardRequest();
   const [data, setData] = useState<Directory>();
   const [query, setQuery] = useState('');
   const [department, setDepartment] = useState('');
@@ -177,6 +179,7 @@ function ProfileCards({ user, projects, workload }: UserDetail) {
 }
 
 export function UserDetailPage({ memberId, onChange }: { memberId: string; onChange: () => void }) {
+  const dashboardRequest = useDashboardRequest();
   const [detail, setDetail] = useState<UserDetail>();
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
